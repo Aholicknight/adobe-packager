@@ -520,27 +520,103 @@ def check_cc_version():
                                             
                                             # Download the compatible Creative Cloud version
                                             print('\nDownloading Creative Cloud 5.7.0.1307...')
-                                            cc_url = 'https://mega.nz/file/yaZBhDoB#p3nTh7-Bdg3Li1SUaAjcYd33Zh6GCkLJ87LJLtDaW9Y'
+                                            cc_url = 'https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg'
                                             download_dir = os.path.expanduser('~/Downloads')
                                             cc_dmg_path = os.path.join(download_dir, 'Creative_Cloud_5.7.0.1307.dmg')
                                             
                                             print(f'Downloading to: {cc_dmg_path}')
-                                            print('Note: This uses mega.nz which may require megadl or opening in browser.')
-                                            print(f'\nPlease download Creative Cloud 5.7.0.1307 from:')
-                                            print(f'  {cc_url}')
-                                            print(f'\nAlternatively, use this direct link:')
-                                            print(f'  https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
-                                            print('\nAfter downloading, run the DMG to install.')
+                                            print(f'Source: {cc_url}')
                                             
-                                            # Try to open the URL in browser
                                             try:
-                                                import webbrowser
-                                                if questiony('Open download link in browser?'):
-                                                    # Open the direct Adobe link instead of mega.nz
-                                                    webbrowser.open('https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
-                                                    print('✓ Download link opened in browser')
+                                                # Download the DMG file
+                                                response = session.get(cc_url, stream=True, headers=ADOBE_DL_HEADERS)
+                                                total_size = int(response.headers.get('content-length', 0))
+                                                
+                                                if response.status_code == 200:
+                                                    block_size = 1024 * 1024  # 1 MB
+                                                    progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, desc='Downloading')
+                                                    
+                                                    with open(cc_dmg_path, 'wb') as file:
+                                                        for data in response.iter_content(block_size):
+                                                            progress_bar.update(len(data))
+                                                            file.write(data)
+                                                    progress_bar.close()
+                                                    
+                                                    print(f'\n✓ Download completed: {cc_dmg_path}')
+                                                    
+                                                    # Mount the DMG and run the installer
+                                                    print('\nMounting DMG...')
+                                                    mount_result = Popen(['hdiutil', 'attach', cc_dmg_path], stdout=PIPE, stderr=PIPE)
+                                                    mount_output, mount_error = mount_result.communicate()
+                                                    
+                                                    if mount_result.returncode == 0:
+                                                        print('✓ DMG mounted successfully')
+                                                        
+                                                        # Parse mount output to find the mounted volume
+                                                        mount_lines = mount_output.decode('utf-8').strip().split('\n')
+                                                        volume_path = None
+                                                        for line in mount_lines:
+                                                            if '/Volumes/' in line:
+                                                                parts = line.split('\t')
+                                                                if len(parts) >= 3:
+                                                                    volume_path = parts[-1].strip()
+                                                                    break
+                                                        
+                                                        if volume_path:
+                                                            print(f'Volume mounted at: {volume_path}')
+                                                            
+                                                            # Look for the installer package
+                                                            pkg_files = []
+                                                            for item in os.listdir(volume_path):
+                                                                if item.endswith('.pkg') or item.endswith('.app'):
+                                                                    pkg_files.append(os.path.join(volume_path, item))
+                                                            
+                                                            if pkg_files:
+                                                                installer_path = pkg_files[0]
+                                                                print(f'\nFound installer: {os.path.basename(installer_path)}')
+                                                                
+                                                                if installer_path.endswith('.pkg'):
+                                                                    print('Running installer (requires admin privileges)...')
+                                                                    # Use open command which handles .pkg files properly
+                                                                    install_result = Popen(['open', installer_path], stdout=PIPE, stderr=PIPE)
+                                                                    install_output, install_error = install_result.communicate()
+                                                                    
+                                                                    if install_result.returncode == 0:
+                                                                        print('✓ Installer launched successfully')
+                                                                        print('\nPlease complete the installation in the installer window.')
+                                                                        print('After installation, you can run this script again.')
+                                                                    else:
+                                                                        print(f'Failed to launch installer: {install_error.decode("utf-8")}')
+                                                                elif installer_path.endswith('.app'):
+                                                                    print('Running installer application...')
+                                                                    install_result = Popen(['open', installer_path], stdout=PIPE, stderr=PIPE)
+                                                                    install_output, install_error = install_result.communicate()
+                                                                    
+                                                                    if install_result.returncode == 0:
+                                                                        print('✓ Installer application launched successfully')
+                                                                        print('\nPlease complete the installation in the installer window.')
+                                                                        print('After installation, you can run this script again.')
+                                                                    else:
+                                                                        print(f'Failed to launch installer: {install_error.decode("utf-8")}')
+                                                            else:
+                                                                print('No installer found in DMG. Please open the DMG manually.')
+                                                                print(f'DMG location: {cc_dmg_path}')
+                                                        else:
+                                                            print('Could not determine mount point. Please open the DMG manually.')
+                                                            print(f'DMG location: {cc_dmg_path}')
+                                                    else:
+                                                        print(f'Failed to mount DMG: {mount_error.decode("utf-8")}')
+                                                        print(f'You can manually open: {cc_dmg_path}')
+                                                else:
+                                                    print(f'Failed to download: HTTP {response.status_code}')
+                                                    print('Please download manually from:')
+                                                    print(f'  {cc_url}')
                                             except Exception as e:
-                                                print(f'Could not open browser: {e}')
+                                                print(f'Error during download: {e}')
+                                                print('\nYou can manually download from:')
+                                                print(f'  {cc_url}')
+                                                print('Or from mega.nz:')
+                                                print('  https://mega.nz/file/yaZBhDoB#p3nTh7-Bdg3Li1SUaAjcYd33Zh6GCkLJ87LJLtDaW9Y')
                                             
                                         except Exception as e:
                                             print(f'Error during uninstall/download process: {e}')
