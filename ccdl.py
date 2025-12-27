@@ -428,12 +428,79 @@ def show_version():
           '=' * (31 - len(VERSION_STR) - ye)))
 
 
+def check_cc_version():
+    """Check Creative Cloud version and warn if incompatible."""
+    cc_info_path = '/Library/Application Support/Adobe/Adobe Desktop Common/HDBox/Setup.app/Contents/Info.plist'
+    
+    # Alternative path if Setup.app doesn't exist
+    if not os.path.isfile(cc_info_path):
+        cc_info_path = '/Applications/Utilities/Adobe Creative Cloud/ACC/Creative Cloud.app/Contents/Info.plist'
+    
+    if os.path.isfile(cc_info_path):
+        try:
+            # Use plutil to read the plist file
+            result = Popen(['/usr/bin/plutil', '-convert', 'json', '-o', '-', cc_info_path], 
+                          stdout=PIPE, stderr=PIPE)
+            output, error = result.communicate()
+            
+            if result.returncode == 0:
+                plist_data = json.loads(output.decode('utf-8'))
+                cc_version = plist_data.get('CFBundleShortVersionString', '')
+                
+                if cc_version:
+                    print(f'Creative Cloud version detected: {cc_version}')
+                    
+                    # Parse version to compare
+                    version_parts = cc_version.split('.')
+                    if len(version_parts) >= 2:
+                        major = int(version_parts[0])
+                        minor = int(version_parts[1])
+                        
+                        # Warn if version is 5.10 or higher, or 6.0 or higher
+                        if major > 5 or (major == 5 and minor >= 10):
+                            print('\n' + '='*70)
+                            print('WARNING: Creative Cloud version compatibility issue detected!')
+                            print('='*70)
+                            print(f'Your Creative Cloud version ({cc_version}) may not be compatible with')
+                            print('packages created by this script. You may encounter error -2700:')
+                            print('"SyntaxError: JSON Parse error: Unexpected EOF"')
+                            print('')
+                            print('To resolve this issue, you have two options:')
+                            print('')
+                            print('Option 1: Downgrade Creative Cloud (Recommended)')
+                            print('  - Uninstall your current Creative Cloud version')
+                            print('  - Install Creative Cloud 5.9.0:')
+                            print('    Intel: https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/osx10/ACCCx5_9_0_373.dmg')
+                            print('    ARM:   https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/macarm64/ACCCx5_9_0_373.dmg')
+                            print('  - Or install Creative Cloud 5.7.0.1307:')
+                            print('    https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
+                            print('  - Disable auto-updates in Creative Cloud preferences')
+                            print('')
+                            print('Option 2: Delete the Caps folder before installation')
+                            print('  - Go to: /Library/Application Support/Adobe/caps')
+                            print('  - Delete the "caps" folder (or its contents)')
+                            print('  - Then try installing your package')
+                            print('')
+                            print('For more information, see: https://github.com/Drovosek01/adobe-packager/issues/56')
+                            print('='*70 + '\n')
+                            
+                            if not questionn('Do you want to continue anyway?'):
+                                print('Exiting...')
+                                exit(0)
+        except Exception as e:
+            # Silently fail if we can't read the version
+            pass
+
+
 def get_products():
     if (args.ignoreNoCreativeCloud):
         print('Not checking Creative Cloud installation, created installer may use a fallback icon if CC is not installed.')
     elif (not os.path.isfile('/Library/Application Support/Adobe/Adobe Desktop Common/HDBox/Setup')):
         print('Adobe HyperDrive installer not found.\nPlease make sure the Creative Cloud app is installed.')
         exit(1)
+    else:
+        # Check CC version and warn if incompatible
+        check_cc_version()
 
     selectedVersion = None
     if args.urlVersion:
