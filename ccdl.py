@@ -486,7 +486,66 @@ def check_cc_version():
                                 print('='*70 + '\n')
                                 
                                 if not questionn('Do you want to continue anyway?'):
-                                    print('Exiting...')
+                                    # User chose not to continue, offer to help fix the issue
+                                    print('')
+                                    if questiony(f'Do you want to uninstall Creative Cloud v{cc_version}?'):
+                                        print('\nAttempting to uninstall Creative Cloud...')
+                                        try:
+                                            # Find and run the Creative Cloud uninstaller
+                                            uninstaller_paths = [
+                                                '/Applications/Utilities/Adobe Creative Cloud/Utils/Creative Cloud Uninstaller.app/Contents/MacOS/Creative Cloud Uninstaller',
+                                                '/Applications/Utilities/Adobe Creative Cloud Uninstaller.app/Contents/MacOS/Creative Cloud Uninstaller'
+                                            ]
+                                            
+                                            uninstaller_found = False
+                                            for uninstaller_path in uninstaller_paths:
+                                                if os.path.isfile(uninstaller_path):
+                                                    print(f'Running uninstaller at: {uninstaller_path}')
+                                                    result = Popen([uninstaller_path], stdout=PIPE, stderr=PIPE)
+                                                    output, error = result.communicate()
+                                                    if result.returncode == 0:
+                                                        print('✓ Creative Cloud uninstalled successfully')
+                                                        uninstaller_found = True
+                                                        break
+                                                    else:
+                                                        print(f'Uninstaller returned code {result.returncode}')
+                                            
+                                            if not uninstaller_found:
+                                                print('Warning: Could not find Creative Cloud uninstaller.')
+                                                print('You may need to uninstall manually using Adobe Creative Cloud Cleaner Tool.')
+                                                print('Download from: https://helpx.adobe.com/au/creative-cloud/kb/cc-cleaner-tool-installation-problems.html')
+                                                if not questionn('Continue with download anyway?'):
+                                                    print('Exiting...')
+                                                    exit(0)
+                                            
+                                            # Download the compatible Creative Cloud version
+                                            print('\nDownloading Creative Cloud 5.7.0.1307...')
+                                            cc_url = 'https://mega.nz/file/yaZBhDoB#p3nTh7-Bdg3Li1SUaAjcYd33Zh6GCkLJ87LJLtDaW9Y'
+                                            download_dir = os.path.expanduser('~/Downloads')
+                                            cc_dmg_path = os.path.join(download_dir, 'Creative_Cloud_5.7.0.1307.dmg')
+                                            
+                                            print(f'Downloading to: {cc_dmg_path}')
+                                            print('Note: This uses mega.nz which may require megadl or opening in browser.')
+                                            print(f'\nPlease download Creative Cloud 5.7.0.1307 from:')
+                                            print(f'  {cc_url}')
+                                            print(f'\nAlternatively, use this direct link:')
+                                            print(f'  https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
+                                            print('\nAfter downloading, run the DMG to install.')
+                                            
+                                            # Try to open the URL in browser
+                                            try:
+                                                import webbrowser
+                                                if questiony('Open download link in browser?'):
+                                                    # Open the direct Adobe link instead of mega.nz
+                                                    webbrowser.open('https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
+                                                    print('✓ Download link opened in browser')
+                                            except Exception as e:
+                                                print(f'Could not open browser: {e}')
+                                            
+                                        except Exception as e:
+                                            print(f'Error during uninstall/download process: {e}')
+                                    
+                                    print('\nExiting...')
                                     exit(0)
                     except ValueError:
                         # Version string couldn't be parsed as integers
