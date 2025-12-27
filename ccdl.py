@@ -428,12 +428,218 @@ def show_version():
           '=' * (31 - len(VERSION_STR) - ye)))
 
 
+def check_cc_version():
+    """Check Creative Cloud version and warn if incompatible."""
+    cc_info_path = '/Library/Application Support/Adobe/Adobe Desktop Common/HDBox/Setup.app/Contents/Info.plist'
+    
+    # Alternative path if Setup.app doesn't exist
+    if not os.path.isfile(cc_info_path):
+        cc_info_path = '/Applications/Utilities/Adobe Creative Cloud/ACC/Creative Cloud.app/Contents/Info.plist'
+    
+    if os.path.isfile(cc_info_path):
+        try:
+            # Use plutil to read the plist file
+            result = Popen(['/usr/bin/plutil', '-convert', 'json', '-o', '-', cc_info_path], 
+                          stdout=PIPE, stderr=PIPE)
+            output, error = result.communicate()
+            
+            if result.returncode == 0:
+                plist_data = json.loads(output.decode('utf-8'))
+                cc_version = plist_data.get('CFBundleShortVersionString', '')
+                
+                if cc_version:
+                    print(f'Creative Cloud version detected: {cc_version}')
+                    
+                    # Parse version to compare
+                    try:
+                        version_parts = cc_version.split('.')
+                        if len(version_parts) >= 2:
+                            major = int(version_parts[0])
+                            minor = int(version_parts[1])
+                            
+                            # Warn if version is 5.10 or higher, or 6.0 or higher
+                            if major > 5 or (major == 5 and minor >= 10):
+                                print('\n' + '='*70)
+                                print('WARNING: Creative Cloud version compatibility issue detected!')
+                                print('='*70)
+                                print(f'Your Creative Cloud version ({cc_version}) may not be compatible with')
+                                print('packages created by this script. You may encounter error -2700:')
+                                print('"SyntaxError: JSON Parse error: Unexpected EOF"')
+                                print('')
+                                print('To resolve this issue, you have two options:')
+                                print('')
+                                print('Option 1: Downgrade Creative Cloud (Recommended)')
+                                print('  - Uninstall your current Creative Cloud version')
+                                print('  - Install Creative Cloud 5.9.0:')
+                                print('    Intel: https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/osx10/ACCCx5_9_0_373.dmg')
+                                print('    ARM:   https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/macarm64/ACCCx5_9_0_373.dmg')
+                                print('  - Or install Creative Cloud 5.7.0.1307:')
+                                print('    https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
+                                print('  - Disable auto-updates in Creative Cloud preferences')
+                                print('')
+                                print('Option 2: Delete the Caps folder before installation')
+                                print('  - Go to: /Library/Application Support/Adobe/caps')
+                                print('  - Delete the "caps" folder (or its contents)')
+                                print('  - Then try installing your package')
+                                print('')
+                                print('For more information, see: https://github.com/Drovosek01/adobe-packager/issues/56')
+                                print('='*70 + '\n')
+                                
+                                if not questionn('Do you want to continue anyway?'):
+                                    # User chose not to continue, offer to help fix the issue
+                                    print('')
+                                    if questiony(f'Do you want to uninstall Creative Cloud v{cc_version}?'):
+                                        print('\nAttempting to uninstall Creative Cloud...')
+                                        try:
+                                            # Find and run the Creative Cloud uninstaller
+                                            uninstaller_paths = [
+                                                '/Applications/Utilities/Adobe Creative Cloud/Utils/Creative Cloud Uninstaller.app/Contents/MacOS/Creative Cloud Uninstaller',
+                                                '/Applications/Utilities/Adobe Creative Cloud Uninstaller.app/Contents/MacOS/Creative Cloud Uninstaller'
+                                            ]
+                                            
+                                            uninstaller_found = False
+                                            for uninstaller_path in uninstaller_paths:
+                                                if os.path.isfile(uninstaller_path):
+                                                    print(f'Running uninstaller at: {uninstaller_path}')
+                                                    result = Popen([uninstaller_path], stdout=PIPE, stderr=PIPE)
+                                                    output, error = result.communicate()
+                                                    if result.returncode == 0:
+                                                        print('✓ Creative Cloud uninstalled successfully')
+                                                        uninstaller_found = True
+                                                        break
+                                                    else:
+                                                        print(f'Uninstaller returned code {result.returncode}')
+                                            
+                                            if not uninstaller_found:
+                                                print('Warning: Could not find Creative Cloud uninstaller.')
+                                                print('You may need to uninstall manually using Adobe Creative Cloud Cleaner Tool.')
+                                                print('Download from: https://helpx.adobe.com/au/creative-cloud/kb/cc-cleaner-tool-installation-problems.html')
+                                                if not questionn('Continue with download anyway?'):
+                                                    print('Exiting...')
+                                                    exit(0)
+                                            
+                                            # Download the compatible Creative Cloud version
+                                            print('\nDownloading Creative Cloud 5.7.0.1307...')
+                                            cc_url = 'https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg'
+                                            download_dir = os.path.expanduser('~/Downloads')
+                                            cc_dmg_path = os.path.join(download_dir, 'Creative_Cloud_5.7.0.1307.dmg')
+                                            
+                                            print(f'Downloading to: {cc_dmg_path}')
+                                            print(f'Source: {cc_url}')
+                                            
+                                            try:
+                                                # Download the DMG file
+                                                response = session.get(cc_url, stream=True, headers=ADOBE_DL_HEADERS)
+                                                total_size = int(response.headers.get('content-length', 0))
+                                                
+                                                if response.status_code == 200:
+                                                    block_size = 1024 * 1024  # 1 MB
+                                                    progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, desc='Downloading')
+                                                    
+                                                    with open(cc_dmg_path, 'wb') as file:
+                                                        for data in response.iter_content(block_size):
+                                                            progress_bar.update(len(data))
+                                                            file.write(data)
+                                                    progress_bar.close()
+                                                    
+                                                    print(f'\n✓ Download completed: {cc_dmg_path}')
+                                                    
+                                                    # Mount the DMG and run the installer
+                                                    print('\nMounting DMG...')
+                                                    mount_result = Popen(['hdiutil', 'attach', cc_dmg_path], stdout=PIPE, stderr=PIPE)
+                                                    mount_output, mount_error = mount_result.communicate()
+                                                    
+                                                    if mount_result.returncode == 0:
+                                                        print('✓ DMG mounted successfully')
+                                                        
+                                                        # Parse mount output to find the mounted volume
+                                                        mount_lines = mount_output.decode('utf-8').strip().split('\n')
+                                                        volume_path = None
+                                                        for line in mount_lines:
+                                                            if '/Volumes/' in line:
+                                                                parts = line.split('\t')
+                                                                if len(parts) >= 3:
+                                                                    volume_path = parts[-1].strip()
+                                                                    break
+                                                        
+                                                        if volume_path:
+                                                            print(f'Volume mounted at: {volume_path}')
+                                                            
+                                                            # Look for the installer package
+                                                            pkg_files = []
+                                                            for item in os.listdir(volume_path):
+                                                                if item.endswith('.pkg') or item.endswith('.app'):
+                                                                    pkg_files.append(os.path.join(volume_path, item))
+                                                            
+                                                            if pkg_files:
+                                                                installer_path = pkg_files[0]
+                                                                print(f'\nFound installer: {os.path.basename(installer_path)}')
+                                                                
+                                                                if installer_path.endswith('.pkg'):
+                                                                    print('Running installer (requires admin privileges)...')
+                                                                    # Use open command which handles .pkg files properly
+                                                                    install_result = Popen(['open', installer_path], stdout=PIPE, stderr=PIPE)
+                                                                    install_output, install_error = install_result.communicate()
+                                                                    
+                                                                    if install_result.returncode == 0:
+                                                                        print('✓ Installer launched successfully')
+                                                                        print('\nPlease complete the installation in the installer window.')
+                                                                        print('After installation, you can run this script again.')
+                                                                    else:
+                                                                        print(f'Failed to launch installer: {install_error.decode("utf-8")}')
+                                                                elif installer_path.endswith('.app'):
+                                                                    print('Running installer application...')
+                                                                    install_result = Popen(['open', installer_path], stdout=PIPE, stderr=PIPE)
+                                                                    install_output, install_error = install_result.communicate()
+                                                                    
+                                                                    if install_result.returncode == 0:
+                                                                        print('✓ Installer application launched successfully')
+                                                                        print('\nPlease complete the installation in the installer window.')
+                                                                        print('After installation, you can run this script again.')
+                                                                    else:
+                                                                        print(f'Failed to launch installer: {install_error.decode("utf-8")}')
+                                                            else:
+                                                                print('No installer found in DMG. Please open the DMG manually.')
+                                                                print(f'DMG location: {cc_dmg_path}')
+                                                        else:
+                                                            print('Could not determine mount point. Please open the DMG manually.')
+                                                            print(f'DMG location: {cc_dmg_path}')
+                                                    else:
+                                                        print(f'Failed to mount DMG: {mount_error.decode("utf-8")}')
+                                                        print(f'You can manually open: {cc_dmg_path}')
+                                                else:
+                                                    print(f'Failed to download: HTTP {response.status_code}')
+                                                    print('Please download manually from:')
+                                                    print(f'  {cc_url}')
+                                            except Exception as e:
+                                                print(f'Error during download: {e}')
+                                                print('\nYou can manually download from:')
+                                                print(f'  {cc_url}')
+                                                print('Or from mega.nz:')
+                                                print('  https://mega.nz/file/yaZBhDoB#p3nTh7-Bdg3Li1SUaAjcYd33Zh6GCkLJ87LJLtDaW9Y')
+                                            
+                                        except Exception as e:
+                                            print(f'Error during uninstall/download process: {e}')
+                                    
+                                    print('\nExiting...')
+                                    exit(0)
+                    except ValueError:
+                        # Version string couldn't be parsed as integers
+                        pass
+        except Exception as e:
+            # Silently fail if we can't read the version
+            pass
+
+
 def get_products():
     if (args.ignoreNoCreativeCloud):
         print('Not checking Creative Cloud installation, created installer may use a fallback icon if CC is not installed.')
     elif (not os.path.isfile('/Library/Application Support/Adobe/Adobe Desktop Common/HDBox/Setup')):
         print('Adobe HyperDrive installer not found.\nPlease make sure the Creative Cloud app is installed.')
         exit(1)
+    else:
+        # Check CC version and warn if incompatible
+        check_cc_version()
 
     selectedVersion = None
     if args.urlVersion:

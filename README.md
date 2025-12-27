@@ -33,6 +33,7 @@ Yes, I am not the original creator of this script and so far I have only formatt
 ## Known issues
 
 - Postfix `macarm64` can mean `macuniversal` architecture
+- **Creative Cloud version compatibility**: Packages created by this script may not work with Creative Cloud version 5.10 or newer. See [Troubleshooting](#troubleshooting) section for solutions.
 
 ## Resolved issues
 
@@ -84,6 +85,68 @@ If you want to try your luck and find out if the version of the application you 
 
 After the installation is complete, open the Application folder and there is a folder with the installed application and if there is no crossed-out circle on the application icons, then it will start without problems and most likely will also work without problems.
 So on macOS Mojave I managed to work in InDesign CC 2022 v17.0, but Photoshop CC 2022 installed on macOS Mojave was displayed with a crossed circle and even changing the requirements of the minimum version of macOS in the Info.plist file inside Adobe Photoshop 2022 did not help to launch it, because, as I understand, it is compiled specifically for macOS 10.15 and newer.
+
+## Troubleshooting
+
+### Error: "SyntaxError: JSON Parse error: Unexpected EOF (-2700)"
+
+This error occurs when you try to install a package created by adobe-packager using Creative Cloud version 5.10 or newer. Adobe changed how packages are validated in newer versions, making them incompatible with packages created by this script.
+
+**Symptoms:**
+- Installation fails with error code -2700
+- Error message: "SyntaxError: JSON Parse error: Unexpected EOF"
+- Occurs regardless of language or system locale settings
+
+**Solution 1: Downgrade Creative Cloud (Recommended)**
+
+The most reliable solution is to use a compatible version of Creative Cloud (5.9.0 or earlier):
+
+1. **Uninstall your current Creative Cloud**
+   - Use the official Adobe Creative Cloud Cleaner Tool if needed: [Download here](https://helpx.adobe.com/au/creative-cloud/kb/cc-cleaner-tool-installation-problems.html)
+
+2. **Install a compatible Creative Cloud version:**
+
+   **Creative Cloud 5.9.0** (Last version before the breaking change):
+   - Intel Mac: `https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/osx10/ACCCx5_9_0_373.dmg`
+   - Apple Silicon (M1/M2/M3): `https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/macarm64/ACCCx5_9_0_373.dmg`
+
+   **Creative Cloud 5.7.0.1307** (Alternative stable version):
+   - Universal: `https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg`
+
+3. **Prevent Creative Cloud from auto-updating:**
+   - As soon as Creative Cloud opens, disconnect from the internet
+   - Open Creative Cloud preferences
+   - Under "Apps" section, disable "Auto-update apps"
+   - Under "General" section, disable "Start Creative Cloud at login" (optional but recommended)
+   - Restart your Mac before reconnecting to the internet
+   - Do not open Creative Cloud again until you need to install Adobe apps
+
+4. **Delete the Caps folder (if it exists):**
+   - Open Finder and press `Shift+Command+G`
+   - Enter: `/Library/Application Support/Adobe`
+   - If a folder named "caps" exists, delete it or move it to Trash
+   - This folder may not exist on fresh installations
+
+5. **Install your Adobe package:**
+   - Run the installer app created by adobe-packager
+   - The installation should now complete successfully
+
+**Solution 2: Quick Fix (May not work for everyone)**
+
+If you don't want to downgrade Creative Cloud:
+
+1. Delete the Caps folder:
+   - Press `Shift+Command+G` in Finder
+   - Go to: `/Library/Application Support/Adobe`
+   - Delete the "caps" folder if it exists
+
+2. Install your package immediately after deleting the folder
+
+**Note:** If you need to install multiple Adobe applications, you may need to reinstall the older Creative Cloud version each time, as it tends to auto-update even with auto-update disabled.
+
+**Additional Resources:**
+- Original issue discussion: [Issue #56](https://github.com/Drovosek01/adobe-packager/issues/56)
+- Related issue: [Issue #57](https://github.com/Drovosek01/adobe-packager/issues/57)
 
 ## Used code
 

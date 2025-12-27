@@ -31,3 +31,10 @@ Temporary Items
 .apdisk
 
 # End of https://www.toptal.com/developers/gitignore/api/macos
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
