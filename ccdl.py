@@ -451,42 +451,46 @@ def check_cc_version():
                     print(f'Creative Cloud version detected: {cc_version}')
                     
                     # Parse version to compare
-                    version_parts = cc_version.split('.')
-                    if len(version_parts) >= 2:
-                        major = int(version_parts[0])
-                        minor = int(version_parts[1])
-                        
-                        # Warn if version is 5.10 or higher, or 6.0 or higher
-                        if major > 5 or (major == 5 and minor >= 10):
-                            print('\n' + '='*70)
-                            print('WARNING: Creative Cloud version compatibility issue detected!')
-                            print('='*70)
-                            print(f'Your Creative Cloud version ({cc_version}) may not be compatible with')
-                            print('packages created by this script. You may encounter error -2700:')
-                            print('"SyntaxError: JSON Parse error: Unexpected EOF"')
-                            print('')
-                            print('To resolve this issue, you have two options:')
-                            print('')
-                            print('Option 1: Downgrade Creative Cloud (Recommended)')
-                            print('  - Uninstall your current Creative Cloud version')
-                            print('  - Install Creative Cloud 5.9.0:')
-                            print('    Intel: https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/osx10/ACCCx5_9_0_373.dmg')
-                            print('    ARM:   https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/macarm64/ACCCx5_9_0_373.dmg')
-                            print('  - Or install Creative Cloud 5.7.0.1307:')
-                            print('    https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
-                            print('  - Disable auto-updates in Creative Cloud preferences')
-                            print('')
-                            print('Option 2: Delete the Caps folder before installation')
-                            print('  - Go to: /Library/Application Support/Adobe/caps')
-                            print('  - Delete the "caps" folder (or its contents)')
-                            print('  - Then try installing your package')
-                            print('')
-                            print('For more information, see: https://github.com/Drovosek01/adobe-packager/issues/56')
-                            print('='*70 + '\n')
+                    try:
+                        version_parts = cc_version.split('.')
+                        if len(version_parts) >= 2:
+                            major = int(version_parts[0])
+                            minor = int(version_parts[1])
                             
-                            if not questionn('Do you want to continue anyway?'):
-                                print('Exiting...')
-                                exit(0)
+                            # Warn if version is 5.10 or higher, or 6.0 or higher
+                            if major > 5 or (major == 5 and minor >= 10):
+                                print('\n' + '='*70)
+                                print('WARNING: Creative Cloud version compatibility issue detected!')
+                                print('='*70)
+                                print(f'Your Creative Cloud version ({cc_version}) may not be compatible with')
+                                print('packages created by this script. You may encounter error -2700:')
+                                print('"SyntaxError: JSON Parse error: Unexpected EOF"')
+                                print('')
+                                print('To resolve this issue, you have two options:')
+                                print('')
+                                print('Option 1: Downgrade Creative Cloud (Recommended)')
+                                print('  - Uninstall your current Creative Cloud version')
+                                print('  - Install Creative Cloud 5.9.0:')
+                                print('    Intel: https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/osx10/ACCCx5_9_0_373.dmg')
+                                print('    ARM:   https://trials.adobe.com/AdobeProducts/KCCC/CCD/5_9_0/macarm64/ACCCx5_9_0_373.dmg')
+                                print('  - Or install Creative Cloud 5.7.0.1307:')
+                                print('    https://ccmdl.adobe.com/AdobeProducts/KCCC/CCD/5_7_0/osx10/ACCCx5_7_0_1307.dmg')
+                                print('  - Disable auto-updates in Creative Cloud preferences')
+                                print('')
+                                print('Option 2: Delete the Caps folder before installation')
+                                print('  - Go to: /Library/Application Support/Adobe/caps')
+                                print('  - Delete the "caps" folder (or its contents)')
+                                print('  - Then try installing your package')
+                                print('')
+                                print('For more information, see: https://github.com/Drovosek01/adobe-packager/issues/56')
+                                print('='*70 + '\n')
+                                
+                                if not questionn('Do you want to continue anyway?'):
+                                    print('Exiting...')
+                                    exit(0)
+                    except ValueError:
+                        # Version string couldn't be parsed as integers
+                        pass
         except Exception as e:
             # Silently fail if we can't read the version
             pass
